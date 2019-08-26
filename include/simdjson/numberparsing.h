@@ -588,6 +588,7 @@ static really_inline bool parse_number(const uint8_t *const buf, ParsedJson &pj,
     size_t lz = lz128(large_mantissa);
     size_t shift = 128 - lz - 54;
     // we could use a mantissa that's a mix of powers of 5 and 10 to see if we can find the best one
+    double d = 0;
     if (change >> shift == 0) {
       uint64_t mantissa = large_mantissa >> shift;
       mantissa += mantissa & 1;
@@ -596,10 +597,11 @@ static really_inline bool parse_number(const uint8_t *const buf, ParsedJson &pj,
       uint64_t real_exponent = c.exp + 1023 + (127 - lz);
       mantissa |= real_exponent << 52; // lz > 64?
       mantissa |= ((uint64_t)negative) << 63; // is this safe? is this bool in [0, 1]?
-      double d = *((double *)&mantissa);
+      d = *((double *)&mantissa);
       pj.write_tape_double(d);
     } else {
-      pj.write_tape_double(strtod((char *)(buf + offset), NULL));
+      d = strtod((char *)(buf + offset), NULL);
+      pj.write_tape_double(d);
     }
     // could we do a power of 5 mult and then a power of 10 mult, just to increase our chances that one won't have errors?
 #ifdef JSON_TEST_NUMBERS // for unit testing
