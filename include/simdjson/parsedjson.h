@@ -24,6 +24,7 @@ public:
   ParsedJson();
   ~ParsedJson();
   ParsedJson(ParsedJson &&p);
+  bool shouldGo;
 
   // if needed, allocate memory so that the object is able to process JSON
   // documents having up to len bytes and max_depth "depth"
