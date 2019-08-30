@@ -595,10 +595,8 @@ static really_inline bool parse_number(const uint8_t *const buf, ParsedJson &pj,
         mantissa |= real_exponent << 52;
         mantissa |= ((uint64_t)negative) << 63;
         d = *((double *)&mantissa);
-        pj.write_tape_double(d);
       } else {
         d = strtod((char *)(buf + offset), NULL);
-        pj.write_tape_double(d);
       }
     }
     pj.write_tape_double(d);
