@@ -405,17 +405,220 @@ static never_inline bool parse_large_integer(const uint8_t *const buf,
 
   //static const uint64_t power_of_five_mantissas[] = {0x8e679c2f5e44ff8f, 0xe3d8f9e563a198e5, 0x16c8e5ca239028e3, 0x2474a2dd05b3749f, 0x3a5437c8091f20ff, 0x5d538c7341cb67fe, 0x95527a5202df0ccb, 0xeeea5d5004981478, 0x17e43c8800759ba5, 0x2639fa7333ef5f6f, 0x3d2990b8531898b2, 0x61dc1ac084f42783, 0x9c935e00d4b9d8d2, 0xfa856334878fc150, 0x190d56b873f4c688, 0x2815578d865470d9, 0x402225af3d53e7c2, 0x669d0918621fd937, 0xa42e74f3d032f525, 0x106b0bb1fb384bb6, 0x1a44df832b8d45f1, 0x2a07cc05127ba31c, 0x433facd4ea5f6b60, 0x6b991487dd657899, 0xac2820d9623bf429, 0x1137367c236c6537, 0x1b8b8a6038ad6ebe, 0x2c1277005aaf1797, 0x4683f19a2ab1bf59, 0x70d31c29dde93228, 0xb484f9dc9641e9da, 0x120d4c2fa8a030fc, 0x1ce2137f74338193, 0x2e368598b9ec0285, 0x49f0d5c129799da2, 0x764e22cea8c295d1, 0xbd49d14aa79dbc82, 0x12edc82110c2f940, 0x1e494034e79e5b99, 0x30753387d8fd5f5c, 0x4d885272f4c89894, 0x7c0d50b7ee0dc0ed, 0xc67bb4597ce2ce48, 0x13d92ba28c7d14a0, 0x1fc1df6a7a61ba9a, 0x32cfcbdd909c5dc4, 0x514c796280fa2fa1, 0x8213f56a67f6b29b, 0xd01fef10a657842c, 0x14cffe4e7708c06a, 0x214cca1724dacd77, 0x3547a9bea15e158c, 0x553f75fdcefcef46, 0x8865899617fb1871, 0xda3c0f568cc4f3e8, 0x15d2ce55747a1864, 0x22eae3bbed902706, 0x37de392caf4d0b3d, 0x59638eade54811fc, 0x8f05b1163ba6832d, 0xe4d5e82392a40515, 0x16e230d05b76cd4e, 0x249d1ae6f8be154b, 0x3a94f7d7f4635544, 0x5dbb262653d22207, 0x95f83d0a1fb69cd9, 0xeff394dcff8a948e, 0x17fec216198ddba7, 0x266469bcf5afc5d9, 0x3d6d75fb22b2d628, 0x6248bcc5045156a7, 0x9d412e0806e88aa5, 0xfb9b7cd9a4a7443c, 0x19292615c3aa539f, 0x2841d689391085cc, 0x40695741f4e73c79, 0x670ef2032171fa5c, 0xa4e4b66b68b65d60, 0x107d457124123c89, 0x1a6208b50683940f, 0x2a367454d738ece5, 0x438a53baf1f4ae3c, 0x6c1085f7e9877d2d, 0xace73cbfdc0bfb7b, 0x114a52dffc679925, 0x1baa1e332d728ea3, 0x2c4363851584176b, 0x46d238d4ef39bf12, 0x71505aee4b8f981d, 0xb54d5e4a127f59c8, 0x1221563a9b732294, 0x1d022390f8b83753, 0x2e69d2818df38bb8, 0x4a42ea68e31f45f3, 0x76d1770e38320986, 0xbe1bf1b059e9a8d6, 0x1302cb5e6f642a7b, 0x1e6adefd7f06aa5f, 0x30aafe6264d776ff, 0x4dde63d0a158be65, 0x7c97061a9bc130a2, 0xc75809c42c684dd1, 0x13ef342d37a407c8, 0x1fe52048590672d9, 0x330833a6f4d71e29, 0x51a6b90b21583042, 0x82a45b450226b39c, 0xd106f86e69d785c7, 0x14e718d7d7625a2d, 0x2171c159589d5d15, 0x3582cef55a9561bc, 0x559e17eef755692d, 0x88fcf317f22241e2, 0xdb2e51bfe9d0696a, 0x15eb082cca94d757, 0x2311a6ae10ee2558, 0x381c3de34e49d55a, 0x59c6c96bb076222a, 0x8fa475791a569d10, 0xe5d3ef282a242e81, 0x16fb97ea6a9d37d9, 0x24c5bfdd7761f2f6, 0x3ad5ffc8bf031e56, 0x5e2332dacb38308a, 0x969eb7c47859e743, 0xf0fdf2d3f3c30b9f, 0x1819651531f9e78f, 0x268f0821e98fd8e6, 0x3db1a69ca8e627d6, 0x62b5d7610e3d0c8b, 0x9defbf01b061adab, 0xfcb2cb35e702af78, 0x1945145230b377f2, 0x286e86e9e7858cb7, 0x40b0d7dca5a27abe, 0x678159610903f797, 0xa59bc234db398c25, 0x108f936baf85c136, 0x1a7f5245e5a2cebe, 0x2a65506fd5d14aca, 0x43d54d7fbc821143, 0x6c887bff94034ed2, 0xada72ccc20054ae9, 0x115d847ad000877d, 0x1bc8d3f7b3340bfc, 0x2c7486591eb9acc7, 0x4720d6f4fdf5e13e, 0x71ce24bb2fefceca, 0xb616a12b7fe617aa, 0x123576845997025d, 0x1d22573a28f19d62, 0x2e9d585d0e4f6237, 0x4a955a2e7d4bd059, 0x77555d172edfb3c2, 0xbeeefb584aff8603, 0x1317e5ef3ab32700, 0x1e8ca3185deb719a, 0x30e104f3c978b5c3, 0x4e34d4b9425abc6b, 0x7d21545b9d5dfa46, 0xc83553c5c8965d3d, 0x1405552d60dbd61f, 0x200888489af95699, 0x3340da0dc4c22428, 0x52015ce2d469d373, 0x8335616aed761f1f, 0xd1ef0244af2364ff, 0x14fe4d06de5056e6, 0x2196e1a496e6f170, 0x35be35d424a4b580, 0x55fd22ed076def34, 0x899504ae72497eba, 0xdc21a1171d42645d, 0x16035ce8b6203d3c, 0x233894a789cd2ec7, 0x385a8772761517a5, 0x5a2a7250bcee8c3b, 0x9043ea1ac7e41392, 0xe6d3102ad96cec1d, 0x17151b377c247e02, 0x24ee91f2603a6337, 0x3b174fea33909ebf, 0x5e8bb3105280fdff, 0x9745eb4d50ce6332, 0xf209787bb47d6b84, 0x183425a5f872f126, 0x26b9d5d65a5181d7, 0x3df622f090826959, 0x63236b1a80d0a88e, 0x9e9f11c4014dda7e, 0xfdcb4fa002162a63, 0x1961219000356aa3, 0x289b68e666bbddd2, 0x40f8a7d70ac62fb7, 0x67f43fbe77a37f8b, 0xa6539930bf6bff45, 0x10a1f5b813246653, 0x1a9cbc59b83a3d52, 0x2a94608f8d29fbb7, 0x44209a7f48432c59, 0x6d00f7320d3846f4, 0xae67f1e9aec07187, 0x1170cb642b133e8d, 0x1be7abd3781eca7c, 0x2ca5dfb8c03143f9, 0x476fcc5acd1b9ff6, 0x724c7a2ae1c5ccbd, 0xb6e0c377cfa2e12e, 0x1249ad2594c37ceb, 0x1d42aea2879f2e44, 0x2ed1176a72984a07, 0x4ae825771dc07672, 0x77d9d58b62cd8a51, 0xbfc2ef456ae276e8, 0x132d17ed577d0be4, 0x1eae8caef261aca0, 0x3117477e509c4766, 0x4e8ba596e760723d, 0x7dac3c24a5671d2f, 0xc913936dd571c84c, 0x141b8ebe2ef1c73a, 0x202c1796b182d85e, 0x3379bf57826af3c9, 0x525c6558d0ab1fa9, 0x83c7088e1aab65db, 0xd2d80db02aabd62b, 0x15159af804446237, 0x21bc2b266d3a36bf, 0x35f9dea3e1f6bdfe, 0x565c976c9cbdfccb, 0x8a2dbf142dfcc7ab, 0xdd15fe86affad912, 0x161bcca7119915b5, 0x235fadd81c2822bb, 0x3899162693736ac5, 0x5a8e89d75252446e, 0x90e40fbeea1d3a4a, 0xe7d34c64a9c85d44, 0x172ebad6ddc73c86, 0x25179157c93ec73e, 0x3b58e88c75313ec9, 0x5ef4a74721e86476, 0x97edd871cfda3a56, 0xf316271c7fc3908a, 0x184f03e93ff9f4da, 0x26e4d30eccc3215d, 0x3e3aeb4ae1383562, 0x63917877cec0556b, 0x9f4f2726179a2245, 0xfee50b7025c36a08, 0x197d4df19d605767, 0x28c87cb5c89a2571, 0x4140c78940f6a24f, 0x6867a5a867f103b2, 0xa70c3c40a64e6c51, 0x10b46c6cdd6e3e08, 0x1aba4714957d300d, 0x2ac3a4edbbfb8014, 0x446c3b15f9926687, 0x6d79f82328ea3da6, 0xaf298d050e4395d6, 0x118427b3b4a05bc8, 0x1c06a5ec5433c60d, 0x2cd76fe086b93ce2, 0x47bf19673df52e37, 0x72cb5bd86321e38c, 0xb7abc627050305ad, 0x125dfa371a19e6f7, 0x1d6329f1c35ca4bf, 0x2f050fe938943acc, 0x4b3b4ca85a86c47a, 0x785ee10d5da46d90, 0xc097ce7bc90715b3, 0x13426172c74d822b, 0x1ed09bead87c0378, 0x314dc6448d9338c1, 0x4ee2d6d415b85ace, 0x7e37be2022c0914b, 0xc9f2c9cd04674ede, 0x1431e0fae6d7217c, 0x204fce5e3e250261, 0x33b2e3c9fd0803ce, 0x52b7d2dcc80cd2e4, 0x84595161401484a0, 0xd3c21bcecceda100, 0x152d02c7e14af680, 0x21e19e0c9bab2400, 0x3635c9adc5dea000, 0x56bc75e2d6310000, 0x8ac7230489e80000, 0xde0b6b3a76400000, 0x16345785d8a00000, 0x2386f26fc1000000, 0x38d7ea4c68000000, 0x5af3107a40000000, 0x9184e72a00000000, 0xe8d4a51000000000, 0x174876e800000000, 0x2540be4000000000, 0x3b9aca0000000000, 0x5f5e100000000000, 0x9896800000000000, 0xf424000000000000, 0x186a000000000000, 0x2710000000000000, 0x3e80000000000000, 0x6400000000000000, 0xa000000000000000, 0x1000000000000000, 0x1999999999999999, 0x28f5c28f5c28f5c2, 0x4189374bc6a7ef9d, 0x68db8bac710cb295, 0xa7c5ac471b478423, 0x10c6f7a0b5ed8d36, 0x1ad7f29abcaf4857, 0x2af31dc4611873bf, 0x44b82fa09b5a52cb, 0x6df37f675ef6eadf, 0xafebff0bcb24aafe, 0x119799812dea1119, 0x1c25c268497681c2, 0x2d09370d42573603, 0x480ebe7b9d58566c, 0x734aca5f6226f0ad, 0xb877aa3236a4b449, 0x12725dd1d243aba0, 0x1d83c94fb6d2ac34, 0x2f394219248446ba, 0x4b8ed0283a6d3df7, 0x78e480405d7b9658, 0xc16d9a0095928a27, 0x1357c299a88ea76a, 0x1ef2d0f5da7dd8aa, 0x318481895d962776, 0x4f3a68dbc8f03f24, 0x7ec3daf941806506, 0xcad2f7f5359a3b3e, 0x14484bfeebc29f86, 0x2073accb12d0ff3d, 0x33ec47ab514e652e, 0x5313a5dee87d6eb0, 0x84ec3c97da624ab4, 0xd4ad2dbfc3d07787, 0x154484932d2e725a, 0x22073a8515171d5d, 0x3671f73b54f1c895, 0x571cbec554b60dbb, 0x8b61313bbabce2c6, 0xdf01e85f912e37a3, 0x164cfda3281e38c3, 0x23ae629ea696c138, 0x391704310a8acec1, 0x5b5806b4ddaae468, 0x9226712162ab070d, 0xe9d71b689dde71af, 0x17624f8a762fd82b, 0x256a18dd89e626ab, 0x3bdcf495a9703ddf, 0x5fc7edbc424d2fcb, 0x993fe2c6d07b7fab, 0xf53304714d9265df, 0x18851a0b548ea3c9, 0x273b5cdeedb1060f, 0x3ec56164af81a34b, 0x646f023ab2690545, 0xa0b19d2ab70e6ed6, 0x1011c2eaabe7d7e2, 0x19b604aaaca62636, 0x29233aaaadd6a38a, 0x41d1f7777c8a9f44, 0x694ff258c7443207, 0xa87fea27a539e9a5, 0x10d9976a5d52975d, 0x1af5bf109550f22e, 0x2b22cb4dbbb4b6b1, 0x4504787c5f878ab5, 0x6e6d8d93cc0c1122, 0xb0af48ec79ace837, 0x11ab20e472914a6b, 0x1c45016d841baa46, 0x2d3b357c0692aa0a, 0x485ebbf9a41ddcdc, 0x73cac65c39c96161, 0xb94470938fa89bce, 0x1286d80ec190dc61, 0x1da48ce468e7c702, 0x2f6dae3a4172d803, 0x4be2b05d35848cd2, 0x796ab3c855a0e151, 0xc24452da229b021b, 0x136d3b7c36a919cf, 0x1f152bf9f10e8fb2, 0x31bb798fe8174c50, 0x4f925c1973587a1b, 0x7f50935bebc0c35e, 0xcbb41ef979346bca, 0x145ecfe5bf520ac7, 0x2097b309321cde0b, 0x3425eb41e9c7c9ac, 0x536fdecfdc72dc47, 0x857fcae62d8493a5, 0xd59944a37c0752a2, 0x155c2076bf9a5510, 0x222d00bdff5d54e6, 0x36ae679665622171, 0x577d728a3bd03581, 0x8bfbea76c619ef36, 0xdff9772470297ebd, 0x1665bf1d3e6a8cac, 0x23d5fe9530aa7aad, 0x39566421e7772aaf, 0x5bbd6d030bf1dde5, 0x92c8ae6b464fc96f, 0xeadab0aba3b2dbe5, 0x177c44ddf6c515fd, 0x2593a163246e8995, 0x3c1f689ea0b0dc22, 0x603240fdcde7c69c, 0x99ea0196163fa42e, 0xf64335bcf065d37d, 0x18a0522c7e709526, 0x2766e9e0ca4dbb70, 0x3f0b0fce107c5f19, 0x64de7fb01a609829, 0xa163ff802a3426a8, 0x1023998cd1053710, 0x19d28f47b4d524e7, 0x2950e53f87bb6e3f, 0x421b0865a5f8b065, 0x69c4da3c3cc11a3c, 0xa93af6c6c79b5d2d, 0x10ec4be0ad8f8951, 0x1b13ac9aaf4c0ee8, 0x2b52adc44bace4a7, 0x45511606df7b0772, 0x6ee8233e325e7250, 0xb1736b96b6fd83b3, 0x11bebdf578b2f391, 0x1c6463225ab7ec1c, 0x2d6d6b6a2abfe02e, 0x48af1243779966b0, 0x744b506bf28f0ab3, 0xba121a4650e4ddeb, 0x129b69070816e2fd, 0x1dc574d80cf16b2f, 0x2fa2548ce1824519, 0x4c36edae359d3b5b, 0x79f17c49ef61f893, 0xc31bfa0fe5698db8, 0x1382cc34ca2427c5, 0x1f37ad21436d0c6f, 0x31f2ae9b9f14e0b2, 0x4feab0f8fe87cde9, 0x7fdde7f4ca72e30f, 0xcc963fee10b7d1b3, 0x14756ccb01abfb5e, 0x20bbe144cf799231, 0x345fced47f28e9e8, 0x53cc7e20cb74a973, 0x8613fd0145877585, 0xd686619ba27255a2, 0x1573d68f903ea229, 0x2252f0e5b39769dc, 0x36eb1b091f58a960, 0x57de91a832277567, 0x8c974f7383725573, 0xe0f218b8d25088b8, 0x167e9c127b6e7412, 0x23fdc683f8b0b9b7, 0x39960a6cc11ac2be, 0x5c2343e134f79dfd, 0x936b9fcebb25c995, 0xebdf661791d60f56, 0x179657025b6234bb, 0x25bd5803c569edf9, 0x3c62266c6f0fe328, 0x609d0a4718196b73, 0x9a94dd3e8cf578b9, 0xf7549530e188c128, 0x18bba884e35a79b7, 0x2792a73b055d8f8b, 0x3f510b91a22f4c12, 0x654e78e9037ee01d, 0xa21727db38cb002f, 0x103583fc527ab337, 0x19ef3993b72ab859, 0x297ec285f1ddf3c2, 0x42646a6fe9631f9d, 0x6a3a43e642383295, 0xa9f6d30a038d1dbc, 0x10ff151a99f482f9, 0x1b31bb5dc320d18e, 0x2b82c562d1ce1c17, 0x459e089e1c7cf9bf, 0x6f6340fcfa618f98, 0xb23867fb2a35b28d, 0x11d270cc51055ea7, 0x1c83e7ad4e6efdd9, 0x2d9fd9154a4b2fc2, 0x48ffc1bbaa11e603, 0x74cc692c434fd66b, 0xbae0a846d2195712, 0x12b010d3e1cf5581, 0x1de6815302e5559c, 0x2fd735519e3bbc2d, 0x4c8b888296c5f9e2, 0x7a78da6a8ad65c9d, 0xc3f490aa77bd60fc, 0x139874ddd8c6234c, 0x1f5a549627a36bad, 0x322a20f03f6bdf7c, 0x504367e6cbdfcbf9, 0x806bd9714632dff6, 0xcd795be870516656, 0x148c22ca71a1bd6f, 0x20e037aa4f692f18, 0x3499f2aa18a84b59, 0x542984435aa6def5, 0x86a8d39ef77164bc, 0xd77485cb25823ac7, 0x158ba6fab6f36c47, 0x22790b2abe5246d8, 0x372811ddfd507159, 0x58401c96621a4ef6, 0x8d3360f09cf6e4bd, 0xe1ebce4dc7f16dfb, 0x169794a160cb57cc, 0x2425ba9bce122613, 0x39d5f75fb01d09b9, 0x5c898bcc4cfb42c2, 0x940f4613ae5ed136, 0xece53cec4a314ebd, 0x17b08617a104ee46, 0x25e73cf29b3b16d6, 0x3ca52e50f85e8af1, 0x61084a1b26fdab1b, 0x9b407691d7fc44f8, 0xf867241c8cc6d4c0, 0x18d71d360e13e213, 0x27be952349b969b8, 0x3f97550542c242c0, 0x65beee6ed136d134, 0xa2cb1717b52481ed, 0x1047824f2bb6d9ca, 0x1a0c03b1df8af611, 0x29acd2b63277f01b, 0x42ae1df050bfe693, 0x6ab02fe6e79970eb, 0xaab37fd7d8f58178, 0x1111f32f2f4bc025, 0x1b4feb7eb212cd09, 0x2bb31264501e14db, 0x45eb50a08030215e, 0x6fdee76733803564, 0xb2fe3f0b8599ef07, 0x11e6398126f5cb1a, 0x1ca38f350b22de90, 0x2dd27ebb4504974d, 0x4950cac53b3a8baf, 0x754e113b91f745e5, 0xbbb01b9283253ca2, 0x12c4cf8ea6b6ec76, 0x1e07b27dd78b13f1, 0x300c50c958de864e, 0x4ce0814227ca707d, 0x7b00ced03faa4d95, 0xc4ce17b399107c22, 0x13ae3591f5b4d936, 0x1f7d228322baf524, 0x3261d0d1d12b21d3, 0x509c814fb511cfb9, 0x80fa687f881c7f8e, 0xce5d73ff402d98e3, 0x14a2f1ffecd15c16, 0x2104b66647b56024, 0x34d4570a0c5566a0, 0x5486f1a9ad557101, 0x873e4f75e2224e68, 0xd863b256369d4a40, 0x15a391d56bdc876c, 0x229f4fbbdfc73f14, 0x37654c5fcc71fe87, 0x58a213cc7a4ffda5, 0x8dd01fad907ffc3b, 0xe2e69915b3fff9f9, 0x16b0a8e891ffff65, 0x244ddb0db666656f, 0x3a162b4923d708b2, 0x5cf04541d2f1a783, 0x94b3a202eb1c3f39, 0xedec366b11c6cb8f, 0x17cad23de82d7ac1, 0x261150630d159135, 0x3ce8809e7b55b522, 0x617400fd9222bb6a, 0x9becce62836ac577, 0xf97ae3d0d2446f25, 0x18f2b061aea07183, 0x27eab3cf7dcd826c, 0x3fddec7f2faf3713, 0x662fe0cb7f7ebe86, 0xa37fce126597973c, 0x1059949b708f28b9, 0x1a28edc580e50df5, 0x29db1608ce3b4988, 0x42f8234149f875a7, 0x6b269ecedcc0bc3e, 0xab70fe17c79ac6ca, 0x1124e63593f5e0ad, 0x1b6e3d2286563449, 0x2be395040a2386db, 0x4638ee6cdd05a492, 0x705b171494d5d41e, 0xb3c4f1ba87bc8696, 0x11fa182c40c60d75, 0x1cc359e067a348bb};
 
-  static size_t lz128(__uint128_t t) {
-    uint64_t upper = t >> 64;
-    if (upper) {
-      return leading_zeroes(upper);
+  // parse the number at buf + offset
+  // define JSON_TEST_NUMBERS for unit testing
+  //
+  // It is assumed that the number is followed by a structural ({,},],[) character
+  // or a white space character. If that is not the case (e.g., when the JSON
+  // document is made of a single number), then it is necessary to copy the
+  // content and append a space before calling this function.
+  //
+  // Our objective is accurate parsing (ULP of 0 or 1) at high speed.
+  static bool parse_number(const uint8_t *const buf, ParsedJson &pj,
+                    const uint32_t offset,
+                    bool found_minus) {
+#ifdef SIMDJSON_SKIPNUMBERPARSING // for performance analysis, it is sometimes
+                                  // useful to skip parsing
+    pj.write_tape_s64(0);           // always write zero
+    return true;                    // always succeeds
+#else
+    const char *p = reinterpret_cast<const char *>(buf + offset);
+    bool negative = false;
+    if (found_minus) {
+      ++p;
+      negative = true;
+      if (!is_integer(*p)) { // a negative sign must be followed by an integer
+#ifdef JSON_TEST_NUMBERS // for unit testing
+        found_invalid_number(buf + offset);
+#endif
+        return false;
+      }
     }
-    return 64 + leading_zeroes((uint64_t)t);
+    const char *const start_digits = p;
+
+    uint64_t i;      // an unsigned int avoids signed overflows (which are bad)
+    if (*p == '0') { // 0 cannot be followed by an integer
+      ++p;
+      if (is_not_structural_or_whitespace_or_exponent_or_decimal(*p)) {
+#ifdef JSON_TEST_NUMBERS // for unit testing
+        found_invalid_number(buf + offset);
+#endif
+        return false;
+      }
+      i = 0;
+    } else {
+      if (!(is_integer(*p))) { // must start with an integer
+#ifdef JSON_TEST_NUMBERS // for unit testing
+        found_invalid_number(buf + offset);
+#endif
+        return false;
+      }
+      unsigned char digit = *p - '0';
+      i = digit;
+      p++;
+      // the is_made_of_eight_digits_fast routine is unlikely to help here because
+      // we rarely see large integer parts like 123456789
+      while (is_integer(*p)) {
+        digit = *p - '0';
+        // a multiplication by 10 is cheaper than an arbitrary integer
+        // multiplication
+        i = 10 * i + digit; // might overflow, we will handle the overflow later
+        ++p;
+      }
+    }
+    int64_t exponent = 0;
+    bool is_float = false;
+    if ('.' == *p) {
+      is_float = true; // At this point we know that we have a float
+                       // we continue with the fiction that we have an integer. If the
+                       // floating point number is representable as x * 10^z for some integer
+                       // z that fits in 53 bits, then we will be able to convert back the
+                       // the integer into a float in a lossless manner.
+      ++p;
+      const char *const first_after_period = p;
+      if (is_integer(*p)) {
+        unsigned char digit = *p - '0';
+        ++p;
+        i = i * 10 + digit; // might overflow + multiplication by 10 is likely
+                            // cheaper than arbitrary mult.
+                            // we will handle the overflow later
+      } else {
+#ifdef JSON_TEST_NUMBERS // for unit testing
+        found_invalid_number(buf + offset);
+#endif
+        return false;
+      }
+#ifdef SWAR_NUMBER_PARSING
+      // this helps if we have lots of decimals!
+      // this turns out to be frequent enough.
+      if (is_made_of_eight_digits_fast(p)) {
+        i = i * 100000000 + parse_eight_digits_unrolled(p);
+        p += 8;
+      }
+#endif
+      while (is_integer(*p)) {
+        unsigned char digit = *p - '0';
+        ++p;
+        i = i * 10 + digit; // in rare cases, this will overflow, but that's ok
+                            // because we have parse_highprecision_float later.
+      }
+      exponent = first_after_period - p;
+    }
+    int digit_count =
+    p - start_digits - 1; // used later to guard against overflows
+    int64_t exp_number = 0;   // exponential part
+    if (('e' == *p) || ('E' == *p)) {
+      is_float = true;
+      ++p;
+      bool neg_exp = false;
+      if ('-' == *p) {
+        neg_exp = true;
+        ++p;
+      } else if ('+' == *p) {
+        ++p;
+      }
+      if (!is_integer(*p)) {
+#ifdef JSON_TEST_NUMBERS // for unit testing
+        found_invalid_number(buf + offset);
+#endif
+        return false;
+      }
+      unsigned char digit = *p - '0';
+      exp_number = digit;
+      p++;
+      if (is_integer(*p)) {
+        digit = *p - '0';
+        exp_number = 10 * exp_number + digit;
+        ++p;
+      }
+      if (is_integer(*p)) {
+        digit = *p - '0';
+        exp_number = 10 * exp_number + digit;
+        ++p;
+      }
+      while (is_integer(*p)) {
+        if (exp_number > 0x100000000) { // we need to check for overflows
+                                        // we refuse to parse this
+#ifdef JSON_TEST_NUMBERS // for unit testing
+          found_invalid_number(buf + offset);
+#endif
+          return false;
+        }
+        digit = *p - '0';
+        exp_number = 10 * exp_number + digit;
+        ++p;
+      }
+      exponent += (neg_exp ? -exp_number : exp_number);
+    }
+    if (is_float) {
+      uint64_t power_index = 308 + exponent;
+      if (unlikely((digit_count >= 19))) { // this is uncommon
+                                           // It is possible that the integer had an overflow.
+                                           // We have to handle the case where we have 0.0000somenumber.
+        const char *start = start_digits;
+        while ((*start == '0') || (*start == '.')) {
+          start++;
+        }
+        // we over-decrement by one when there is a '.'
+        digit_count -= (start - start_digits);
+        if (digit_count >= 19) {
+          // Ok, chances are good that we had an overflow!
+          // this is almost never going to get called!!!
+          // we start anew, going slowly!!!
+          return parse_float(buf, pj, offset, found_minus);
+        }
+      }
+      if (unlikely((power_index > 2 * 308))) { // this is uncommon!!!
+                                               // this is almost never going to get called!!!
+                                               // we start anew, going slowly!!!
+        return parse_float(buf, pj, offset, found_minus);
+      }
+      double d = 0;
+      if (i != 0) {
+        components c = power_of_ten_components[power_index];
+        uint64_t factor_mantissa = c.mantissa;
+        int lz = leading_zeroes(i);
+        i <<= lz;
+        __uint128_t large_mantissa = (__uint128_t)i * factor_mantissa;
+        uint64_t upper = large_mantissa >> 64;
+        if (likely((upper & 0x1FF) != 0x1FF)) {
+          uint64_t mantissa = 0;
+          if (upper & (1ULL << 63)) {
+            mantissa = upper >> 10;
+          } else {
+            mantissa = upper >> 9;
+            lz++;
+          }
+          mantissa += mantissa & 1;
+          mantissa >>= 1;
+          mantissa &= ~(1ULL << 52);
+          uint64_t real_exponent = c.exp + 1023 + (127 - lz);
+          mantissa |= real_exponent << 52;
+          mantissa |= ((uint64_t)negative) << 63;
+          d = *((double *)&mantissa);
+          pj.write_tape_double(d);
+        } else {
+          d = strtod((char *)(buf + offset), NULL);
+          pj.write_tape_double(d);
+        }
+      }
+#ifdef JSON_TEST_NUMBERS // for unit testing
+      found_float(d, buf + offset);
+#endif
+    } else {
+      if (unlikely(digit_count >= 18)) { // this is uncommon!!!
+                                         // there is a good chance that we had an overflow, so we need
+                                         // need to recover: we parse the whole thing again.
+        return parse_large_integer(buf, pj, offset, found_minus);
+      }
+      i = negative ? 0 - i : i;
+      pj.write_tape_s64(i);
+#ifdef JSON_TEST_NUMBERS // for unit testing
+      found_integer(i, buf + offset);
+#endif
+    }
+    return is_structural_or_whitespace(*p);
+#endif // SIMDJSON_SKIPNUMBERPARSING
   }
-
-  bool parse_number(const uint8_t *const buf, ParsedJson &pj,
-                                         const uint32_t offset,
-                                         bool found_minus);
-
 } // simdjson
 #endif
