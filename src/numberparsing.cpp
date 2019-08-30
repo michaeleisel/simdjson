@@ -2,12 +2,13 @@
 
 #include <stdio.h>
 #include "simdjson/numberparsing.h"
+#include <rapidjson/internal/strtod.h>
 
 static uint64_t case1 = 0, case2 = 0, case3 = 0;
 static uint64_t z = 0;
 
 void inc() {
-  z = (z + 1) % 5;
+  z = (z + 1) % 6;
 }
 
 static char buffer[40];
@@ -231,16 +232,30 @@ bool parse_number(const uint8_t *const buf, ParsedJson &pj,
       return parse_float(buf, pj, offset, found_minus);
     }
     double d = 0;
-    if (i != 0) {
+    if (z == 0) {// pj.shouldGo) {
+      char *start = (char *)(buf + offset);
+      if (found_minus) {
+        start++;
+      }
+      int absexp = (exponent < 0 ? -exponent : exponent);
+      int nbefore = p - absexp - start - 1;
+      memcpy(buffer, start, nbefore);
+      memcpy(buffer + nbefore, start + nbefore + 1, absexp);
+      buffer[nbefore + absexp] = '\0';
+      bool success = rapidjson::internal::StrtodDiyFp(buffer, p - start - 1, exponent,  &d);
+      pj.write_tape_double(d);
+    } else if (z == 1) {
       components c = power_of_ten_components[power_index];
       uint64_t factor_mantissa = c.mantissa;
       int lz = leading_zeroes(i);
       i <<= lz;
       __uint128_t large_mantissa = (__uint128_t)i * factor_mantissa;
       uint64_t upper = large_mantissa >> 64;
-      if (likely((upper & 0x1FF) != 0x1FF)) {
+      uint64_t lower = large_mantissa;
+      uint64_t justLastBit = upper & (1ULL << 63);
+      if (likely((upper & 0x1FF) != 0x1FF)) {//} || (justLastBit && ((upper & 0x3FF) != 0x3FF))) {
         uint64_t mantissa = 0;
-        if (upper & (1ULL << 63)) {
+        if (justLastBit) {
           mantissa = upper >> 10;
         } else {
           mantissa = upper >> 9;
@@ -249,16 +264,53 @@ bool parse_number(const uint8_t *const buf, ParsedJson &pj,
         mantissa += mantissa & 1;
         mantissa >>= 1;
         mantissa &= ~(1ULL << 52);
-        uint64_t real_exponent = c.exp + 1023 + (127 - lz);
+        uint64_t real_exponent = c.exp + 1023 + (127 - lz); //lz);
         mantissa |= real_exponent << 52;
-        mantissa |= ((uint64_t)negative) << 63;
+        mantissa |= ((uint64_t)negative) << 63; // is this safe? is this bool in [0, 1]?
         d = *((double *)&mantissa);
+        //double d2 = strtod((char *)(buf + offset), NULL);
+        //assert(d == d2);
         pj.write_tape_double(d);
       } else {
         d = strtod((char *)(buf + offset), NULL);
         pj.write_tape_double(d);
       }
+    } else if (z == 2) {
+        components c = power_of_ten_components[power_index];
+        uint64_t factor_mantissa = c.mantissa;
+        // no need to worry about the 10...0 case where we need to examine the previous bit as to the behavior (round to even), as we are lowballing already
+        __uint128_t large_mantissa = (__uint128_t)i * factor_mantissa;
+        __uint128_t change = large_mantissa ^ (large_mantissa + i);
+        size_t lz = lz128(large_mantissa);
+        size_t shift = 128 - lz - 54;
+        // we could use a mantissa that's a mix of powers of 5 and 10 to see if we can find the best one
+        double d = 0;
+        if (change >> shift == 0) {
+          uint64_t mantissa = large_mantissa >> shift;
+          mantissa += mantissa & 1;
+          mantissa >>= 1;
+          mantissa &= ~(1ULL << 52);
+          uint64_t real_exponent = c.exp + 1023 + (127 - lz);
+          mantissa |= real_exponent << 52; // lz > 64?
+          mantissa |= ((uint64_t)negative) << 63; // is this safe? is this bool in [0, 1]?
+          d = *((double *)&mantissa);
+          pj.write_tape_double(d);
+        } else {
+          d = strtod((char *)(buf + offset), NULL);
+          pj.write_tape_double(d);
+        }
+    } else if (z == 3) {
+      double factor = power_of_ten[power_index];
+      factor = negative ? -factor : factor;
+      d = i * factor;
+      pj.write_tape_double(d);
+    } else if (z == 4) {
+      d = strtod((char *)(buf + offset), NULL);
+      pj.write_tape_double(d);
+    } else if (z == 5) {
+      pj.write_tape_double(0);
     }
+    // could we do a power of 5 mult and then a power of 10 mult, just to increase our chances that one won't have errors?
 #ifdef JSON_TEST_NUMBERS // for unit testing
     found_float(d, buf + offset);
 #endif
