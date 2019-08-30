@@ -1,4 +1,6 @@
 [
+    0.1e1,
+    1.0,
     "JSON Test Pattern pass1",
     {"object with 1 member":["array with 1 element"]},
     {},
