@@ -94,81 +94,84 @@ namespace simdjson {
 
 
 // handle case where strtod finds an invalid number. won't we have a buffer overflow if it's just numbers past the end?
-double compute_float_64(uint64_t power_index, uint64_t i, bool negative, bool *success) {
+double compute_float_64(uint64_t power_index, uint64_t i, bool negative) {
   if (i == 0) {
-    *success = true;
     return 0;
   }
-  if (z == 0) {
-  } else if (z == 1) {
+  components c = power_of_ten_components[power_index];
+  uint64_t factor_mantissa = c.mantissa;
+  int lz = leading_zeroes(i);
+  i <<= lz;
+  __uint128_t large_mantissa = (__uint128_t)i * factor_mantissa;
+  uint64_t upper = large_mantissa >> 64;
+  uint64_t lower = large_mantissa;
+  uint64_t justLastBit = upper & (1ULL << 63);
+  if (unlikely((upper & 0x1FF) == 0x1FF)) {//} || (justLastBit && ((upper & 0x3FF) != 0x3FF))) {
+    return NAN;
+  }
+  uint64_t mantissa = 0;
+  if (justLastBit) {
+    mantissa = upper >> 10;
+  } else {
+    mantissa = upper >> 9;
+    lz++;
+  }
+  mantissa += mantissa & 1;
+  mantissa >>= 1;
+  mantissa &= ~(1ULL << 52);
+  uint64_t real_exponent = c.exp + 1023 + (127 - lz);
+  mantissa |= real_exponent << 52;
+  mantissa |= ((uint64_t)negative) << 63; // Assumes negative is in [0, 1]
+  double d = 0;
+  memcpy(&d, &mantissa, sizeof(d));
+  return d;
+}
+
+  static const int powersOf10[] = {1, 10, 100, 1000};
+
+  double compute_float_128(uint64_t power_index, uint64_t i_start, int16_t i_end, int digits_in_i_end, bool negative, bool i_is_accurate) {
     components c = power_of_ten_components[power_index];
     uint64_t factor_mantissa = c.mantissa;
-    int lz = leading_zeroes(i);
-    i <<= lz;
-    __uint128_t large_mantissa = (__uint128_t)i * factor_mantissa;
-    uint64_t upper = large_mantissa >> 64;
-    uint64_t lower = large_mantissa;
-    uint64_t justLastBit = upper & (1ULL << 63);
-    if (likely((upper & 0x1FF) != 0x1FF)) {//} || (justLastBit && ((upper & 0x3FF) != 0x3FF))) {
-      uint64_t mantissa = 0;
-      if (justLastBit) {
-        mantissa = upper >> 10;
-      } else {
-        mantissa = upper >> 9;
-        lz++;
-      }
-      mantissa += mantissa & 1;
-      mantissa >>= 1;
-      mantissa &= ~(1ULL << 52);
-      uint64_t real_exponent = c.exp + 1023 + (127 - lz); //lz);
-      mantissa |= real_exponent << 52;
-      mantissa |= ((uint64_t)negative) << 63; // Assumes negative is in [0, 1]
-      double d = 0;
-      memcpy(&d, &mantissa, sizeof(d));
-  }
-  }
-
-  double compute_float_128(uint64_t power_index, ) {
-    __uint128_t m_ext_upper = (__uint128_t)factor_mantissa;
-    __uint128_t m_ext = (m_ext_upper << 32) | powers_ext[power_index];
-    __uint128_t i_ext = (__uint128_t)i;
-    const uint64_t firstFortyMask = (1ULL << 48) - 1;
-    __uint128_t lower_parts = (m_ext & firstFortyMask) * i_ext + m_ext * (i_ext & firstFortyMask);
-    __uint128_t upper_and_extra = (m_ext >> 48) * (i_ext >> 48);
-    __uint128_t upper = upper_and_extra >> 32;
-    __uint128_t lower = (upper_and_extra << 96) + lower_parts;
-    if (lower < lower_parts) {
+    __uint128_t i = i_start;
+    i = i * ((int)power_of_ten[digits_in_i_end + 308]) + i_end;
+    if (i == 0) {
+      return 0;
+    }
+    uint64_t i_upper = i >> 64;
+    int i_lz = i_upper ? leading_zeroes(i_upper) : 64 + leading_zeroes((uint64_t)i);
+    int i_shift = i_lz - 48;
+    i <<= i_shift;
+    __uint128_t m = ((__uint128_t)factor_mantissa << 32) | powers_ext[power_index];
+    const uint64_t first_forty_eight_mask = (1ULL << 48) - 1;
+    __uint128_t lower_part = i * (m & first_forty_eight_mask);
+    __uint128_t upper128 = i * (m >> 48);
+    uint64_t upper = upper128 >> (128 - 48);
+    __uint128_t lower = lower_part + (upper128 << 48);
+    if (lower < lower_part) { // overflow occurred
       upper++;
     }
-    if (upper) {
-      lz = leading_zeroes((uint64_t)upper) + 64;
-    } else {
-      lz = leading_zeroes((uint64_t)(lower >> 64)) + 128;
+    int lz = leading_zeroes(upper);
+    int safeBits = 192 - lz - 54;
+    __uint128_t max_inaccuracy = i;
+    if (!i_is_accurate) {
+      max_inaccuracy += (m + 1) << i_shift;
     }
-    size_t safeBits = 256 - lz - 54;
-    __uint128_t mask = (~((__uint128_t)0)) >> safeBits;
-    __uint128_t max = lower + i_ext;// + m_ext + 1;
-                                    // what if max overflowed and somehow came back to its old state?
-    __uint128_t lower_shifted = (lower >> safeBits);
-    if (lower_shifted == (max >> safeBits)) {
-      uint64_t mantissa = lower_shifted | (upper << (128 - safeBits));
-      mantissa += mantissa & 1;
-      mantissa >>= 1;
-      mantissa &= ~(1ULL << 52);
-      uint64_t real_exponent = c.exp + 1023 + safeBits;// + 255 - 16;
-      mantissa |= real_exponent << 52; // lz > 64?
-      mantissa |= ((uint64_t)negative) << 63; // is this safe? is this bool in [0, 1]?
-      d = *((double *)&mantissa);
-      //double d2 = strtod((char *)(buf + offset), NULL);
-      //assert(d == d2);
-      case2++;
-      pj.write_tape_double(d);
-    } else {
-      d = strtod((char *)(buf + offset), NULL);
-      pj.write_tape_double(d);
-      case3++;
+    __uint128_t max_lower = lower + max_inaccuracy;
+    __uint128_t unsafe_mask = (~((__uint128_t)0)) << safeBits;
+    if ((max_lower & unsafe_mask) != (lower & unsafe_mask)) {
+      return NAN;
     }
-  }
+    uint64_t mantissa = upper << (128 - safeBits) | lower >> safeBits;
+    mantissa += mantissa & 1;
+    mantissa >>= 1;
+    mantissa &= ~(1ULL << 52);
+    uint64_t real_exponent = c.exp - 32 - i_shift + 1023 + safeBits + 53;
+    mantissa |= real_exponent << 52; // lz > 64?
+    mantissa |= ((uint64_t)negative) << 63; // is this safe? is this bool in [0, 1]?
+    double d = 0;
+    memcpy(&d, &mantissa, sizeof(d));
+    return d;
+}
 
 // parse the number at buf + offset
 // define JSON_TEST_NUMBERS for unit testing
@@ -338,7 +341,16 @@ bool parse_number(const uint8_t *const buf, ParsedJson &pj,
                                              // we start anew, going slowly!!!
       return parse_float(buf, pj, offset, found_minus);
     }
-    double d = 0;
+    double d = compute_float_64(power_index, i, negative);
+    if (isnan(d)) {
+      d = compute_float_128(power_index, i, 0, 0, negative, true);
+      if (isnan(d)) {
+        d = strtod((char *)(buf + offset), NULL);
+      }
+    }
+    double d2 = strtod((char *)(buf + offset), NULL);
+    assert(d == d2);
+    pj.write_tape_double(d);
     // could we do a power of 5 mult and then a power of 10 mult, just to increase our chances that one won't have errors?
 #ifdef JSON_TEST_NUMBERS // for unit testing
     found_float(d, buf + offset);
