@@ -22,7 +22,7 @@ really_inline uint64_t ldbl_mant(long double x)
   return retval;
 }
 
-static uint64_t case1 = 0, case2 = 0, case3 = 0;
+static uint64_t case0 = 0, case1 = 0, case2 = 0, case3 = 0;
 static uint64_t z = 0;
 
 void inc() {
@@ -30,6 +30,10 @@ void inc() {
 }
 
 static char buffer[40];
+
+uint64_t c0() {
+  return case0;
+}
 
 uint64_t c1() {
   return case1;
@@ -172,6 +176,31 @@ double compute_float_64(uint64_t power_index, uint64_t i, bool negative) {
     memcpy(&d, &mantissa, sizeof(d));
     return d;
 }
+
+  double compute_float_double(uint64_t i, int64_t exponent, int64_t power_index, bool negative) {
+    double double_threshold = 9007199254740991.0; // 2 ** 53 - 1
+    if (i > (uint64_t)double_threshold) {
+      return NAN;
+    }
+    double d = i;
+    if (22 < exponent && exponent < 22 + 16) {
+      d *= power_of_ten[exponent - 22];
+      exponent = 22;
+      power_index = exponent + 308;
+    }
+    if (-22 <= exponent && exponent <= 22 && d <= double_threshold) {
+      if (power_index < 308) {
+        d = d / power_of_ten[308 * 2 - power_index];
+      } else {
+        d = d * power_of_ten[power_index];
+      }
+      if (negative) {
+        d = -d;
+      }
+      return d;
+    }
+    return NAN;
+  }
 
 // parse the number at buf + offset
 // define JSON_TEST_NUMBERS for unit testing
@@ -341,15 +370,31 @@ bool parse_number(const uint8_t *const buf, ParsedJson &pj,
                                              // we start anew, going slowly!!!
       return parse_float(buf, pj, offset, found_minus);
     }
-    double d = compute_float_64(power_index, i, negative);
-    if (isnan(d)) {
-      d = compute_float_128(power_index, i, 0, 0, negative, true);
-      if (isnan(d)) {
-        d = strtod((char *)(buf + offset), NULL);
-      }
+    double d = 0;
+    if (true) {//z & 1) {
+        d = compute_float_double(i, exponent, power_index, negative);
+        if (!isnan(d)) {
+          case0++;
+        }
+        if (isnan(d)) {
+            d = compute_float_64(power_index, i, negative);
+            if (!isnan(d)) {
+              case1++;
+            }
+            if (isnan(d)) {
+              d = compute_float_128(power_index, i, 0, 0, negative, true);
+              if (!isnan(d)) {
+                case2++;
+              }
+              if (isnan(d)) {
+                case3++;
+                d = strtod((char *)(buf + offset), NULL);
+              }
+            }
+        }
+    } else {
+      d = i * power_of_ten[power_index];
     }
-    double d2 = strtod((char *)(buf + offset), NULL);
-    assert(d == d2);
     pj.write_tape_double(d);
     // could we do a power of 5 mult and then a power of 10 mult, just to increase our chances that one won't have errors?
 #ifdef JSON_TEST_NUMBERS // for unit testing
