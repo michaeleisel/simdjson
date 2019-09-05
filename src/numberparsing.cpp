@@ -371,29 +371,15 @@ bool parse_number(const uint8_t *const buf, ParsedJson &pj,
       return parse_float(buf, pj, offset, found_minus);
     }
     double d = 0;
-    if (true) {//z & 1) {
-        d = compute_float_double(i, exponent, power_index, negative);
-        if (!isnan(d)) {
-          case0++;
-        }
+    d = compute_float_double(i, exponent, power_index, negative);
+    if (isnan(d)) {
+      d = compute_float_64(power_index, i, negative);
+      if (isnan(d)) {
+        d = compute_float_128(power_index, i, 0, 0, negative, true);
         if (isnan(d)) {
-            d = compute_float_64(power_index, i, negative);
-            if (!isnan(d)) {
-              case1++;
-            }
-            if (isnan(d)) {
-              d = compute_float_128(power_index, i, 0, 0, negative, true);
-              if (!isnan(d)) {
-                case2++;
-              }
-              if (isnan(d)) {
-                case3++;
-                d = strtod((char *)(buf + offset), NULL);
-              }
-            }
+          d = strtod((char *)(buf + offset), NULL);
         }
-    } else {
-      d = i * power_of_ten[power_index];
+      }
     }
     pj.write_tape_double(d);
     // could we do a power of 5 mult and then a power of 10 mult, just to increase our chances that one won't have errors?
