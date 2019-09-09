@@ -194,9 +194,10 @@ static inline uint32_t parse_eight_digits_unrolled(const char *chars) {
 
 
   // handle case where strtod finds an invalid number. won't we have a buffer overflow if it's just numbers past the end?
-  static really_inline double compute_float_64(uint64_t power_index, uint64_t i, bool negative) {
+  static really_inline bool compute_float_64(uint64_t power_index, uint64_t i, bool negative, double *d) {
     if (i == 0) {
-      return 0;
+        *d = 0;
+        return true;
     }
     components c = power_of_ten_components[power_index];
     uint64_t factor_mantissa = c.mantissa;
@@ -205,7 +206,7 @@ static inline uint32_t parse_eight_digits_unrolled(const char *chars) {
     __uint128_t large_mantissa = (__uint128_t)i * factor_mantissa;
     uint64_t upper = large_mantissa >> 64;
     if (unlikely((upper & 0x1FF) == 0x1FF)) {
-      return NAN;
+      return false;
     }
     uint64_t mantissa = 0;
     uint64_t lastBitShifted = upper >> 63;
@@ -217,9 +218,8 @@ static inline uint32_t parse_eight_digits_unrolled(const char *chars) {
     uint64_t real_exponent = c.exp + 1023 + (127 - lz);
     mantissa |= real_exponent << 52;
     mantissa |= ((uint64_t)negative) << 63; // Assumes negative is in [0, 1]
-    double d = 0;
-    memcpy(&d, &mantissa, sizeof(d));
-    return d;
+    memcpy(d, &mantissa, sizeof(*d));
+    return true;
   }
 
   static const int powersOf10[] = {1, 10, 100, 1000};
@@ -335,8 +335,8 @@ static never_inline uint32_t parse_long_float(const uint8_t *const buf, ParsedJs
   }
   int64_t exponent = first_after_period - p;
   int64_t power_index = 308 + exponent + exp_number;
-  double d = compute_float_64(power_index, i, negative);
-  if (std::isnan(d)) {
+  double d = 0;
+  if (!compute_float_64(power_index, i, negative, &d)) {
     uint16_t i_end = 0;
     uint16_t i_end_cutoff = ((uint16_t)~0) / 10 - 1;
     int digits_in_i_end = 0;
@@ -618,15 +618,15 @@ static really_inline bool parse_number(const uint8_t *const buf, ParsedJson &pj,
       // this is almost never going to get called!!!
       return parse_float_strtod(buf, pj, offset, p);
     }
-    double d = compute_float_double(i, exponent, power_index, negative);
-    if (std::isnan(d) && true /*high-precision flag here*/) {
-      d = compute_float_64(power_index, i, negative);
-      if (std::isnan(d)) {
+    double d = 0; //compute_float_double(i, exponent, power_index, negative);
+    if (!compute_float_64(power_index, i, negative, &d)) {
+      return parse_float_strtod(buf, pj, offset, p);
+      /*if (std::isnan(d)) {
         d = compute_float_128(power_index, i, 0, 0, negative, true);
         if (std::isnan(d)) {
           return parse_float_strtod(buf, pj, offset, p);
         }
-      }
+      }*/
     }
     pj.write_tape_double(d);
 #ifdef JSON_TEST_NUMBERS // for unit testing
