@@ -48,6 +48,7 @@
 
 
 #define really_inline inline __attribute__((always_inline, unused))
+// #define really_inline never_inline
 #define never_inline inline __attribute__((noinline, unused))
 
 #define UNUSED __attribute__((unused))
