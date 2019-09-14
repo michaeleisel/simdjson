@@ -304,11 +304,9 @@ static inline uint32_t parse_eight_digits_unrolled(const char *chars) {
     1e295L,  1e296L,  1e297L,  1e298L,  1e299L,  1e300L,  1e301L,  1e302L,  1e303L,
     1e304L,  1e305L,  1e306L,  1e307L,  1e308L};
 
+  // todo: what about when we have i = 1, power_index = 0? then it's 1 * 10^-308
   // handle case where strtod finds an invalid number. won't we have a buffer overflow if it's just numbers past the end?
   static really_inline double compute_float_64(uint64_t power_index, uint64_t i, bool negative) {
-    if (i == 0) {
-      return 0;
-    }
     components c = power_of_ten_components[power_index];
     uint64_t factor_mantissa = c.mantissa;
     int lz = leading_zeroes(i);
@@ -316,7 +314,7 @@ static inline uint32_t parse_eight_digits_unrolled(const char *chars) {
     __uint128_t large_mantissa = (__uint128_t)i * factor_mantissa;
     uint64_t upper = large_mantissa >> 64;
     if (unlikely((upper & 0x1FF) == 0x1FF)) {
-      return NAN;
+      return 0;
     }
     uint64_t mantissa = 0;
     uint64_t lastBitShifted = upper >> 63;
@@ -335,18 +333,12 @@ static inline uint32_t parse_eight_digits_unrolled(const char *chars) {
 
   static const int powersOf10[] = {1, 10, 100, 1000};
 
-  static double compute_float_128(uint64_t power_index, uint64_t i_start, uint16_t i_end, int digits_in_i_end, bool negative, bool i_is_accurate) {
+  static double never_inline compute_float_128(uint64_t power_index, uint64_t i_64, bool negative) {
     components c = power_of_ten_components[power_index];
     uint64_t factor_mantissa = c.mantissa;
-    __uint128_t i = i_start;
-    i = i * ((int)power_of_ten[digits_in_i_end + 308]) + i_end;
-    if (i == 0) {
-      return 0;
-    }
-    uint64_t i_upper = i >> 64;
-    int i_lz = i_upper ? leading_zeroes(i_upper) : 64 + leading_zeroes((uint64_t)i);
-    int i_shift = i_lz - 48;
-    i <<= i_shift;
+    __uint128_t i = i_64;
+    int i_lz = leading_zeroes(i_64);
+    i <<= i_lz;
     __uint128_t m = ((__uint128_t)factor_mantissa << 32) | powers_ext[power_index];
     const uint64_t first_forty_eight_mask = (1ULL << 48) - 1;
     __uint128_t lower_part = i * (m & first_forty_eight_mask);
@@ -358,20 +350,16 @@ static inline uint32_t parse_eight_digits_unrolled(const char *chars) {
     }
     int lz = leading_zeroes(upper);
     int safeBits = 192 - lz - 54;
-    __uint128_t max_inaccuracy = i;
-    if (!i_is_accurate) {
-      max_inaccuracy += (m + 1) << i_shift;
-    }
-    __uint128_t max_lower = lower + max_inaccuracy;
+    __uint128_t max_lower = lower + i;
     __uint128_t unsafe_mask = (~((__uint128_t)0)) << safeBits;
     if ((max_lower & unsafe_mask) != (lower & unsafe_mask)) {
-      return NAN;
+      return 0;
     }
     uint64_t mantissa = upper << (128 - safeBits) | lower >> safeBits;
     mantissa += mantissa & 1;
     mantissa >>= 1;
     mantissa &= ~(1ULL << 52);
-    uint64_t real_exponent = c.exp - 32 - i_shift + 1023 + safeBits + 53;
+    uint64_t real_exponent = c.exp - 32 - i_lz + 1023 + safeBits + 53;
     mantissa |= real_exponent << 52; // lz > 64?
     mantissa |= ((uint64_t)negative) << 63; // is this safe? is this bool in [0, 1]?
     double d = 0;
@@ -379,48 +367,17 @@ static inline uint32_t parse_eight_digits_unrolled(const char *chars) {
     return d;
   }
 
-
-// Credit to Peter Cordes, https://stackoverflow.com/questions/57499986/how-to-get-the-mantissa-of-an-80-bit-long-double-as-an-int-on-x86-64
-really_inline uint64_t ldbl_mant(long double x) {
-  static_assert(sizeof(long double) >= 10, "x87 long double must be >= 10 bytes");
-  static_assert(LDBL_MANT_DIG == 64, "x87 long double significand must be 64 bits");
-
-  uint64_t retval = 0;
-  memcpy(&retval, &x, sizeof(retval));
-  static_assert(sizeof(retval) < sizeof(x), "uint64_t should be strictly smaller than long double"); // sanity check for wrong types
-  return retval;
-}
-
-  static double never_inline compute_float_long_double(uint64_t i, int64_t exponent, int64_t power_index, bool negative) {
-    long double d = i;
-    if (power_index < 308) {
-      d = d / long_power_of_ten[308 - power_index];
-    } else {
-      d = d * long_power_of_ten[power_index - 308];
-    }
-    uint64_t mantissa = ldbl_mant(d);
-    uint64_t end_bits = mantissa & 0x1FF;
-    if (unlikely(end_bits == 0x1FF || end_bits == 0x0)) {
-      return NAN;
-    }
-    if (negative) {
-      d = -d;
-    }
-    return (double)d;
-  }
-
-  static double compute_float_double(uint64_t i, int64_t exponent, int64_t power_index, bool negative) {
+  static double really_inline compute_float_double(uint64_t power_index, uint64_t i, bool negative) {
     double double_threshold = 9007199254740991.0; // 2 ** 53 - 1
     if (i > (uint64_t)double_threshold) {
-      return NAN;
+      return 0;
     }
     double d = i;
-    if (22 < exponent && exponent < 22 + 16) {
+    if (308 + 22 < power_index && power_index < 308 + 22 + 16) {
       d *= power_of_ten[power_index - 22];
-      exponent = 22;
-      power_index = exponent + 308;
+      power_index = 308 + 22;
     }
-    if (-22 <= exponent && exponent <= 22 && d <= double_threshold) {
+    if (308 + -22 <= power_index && power_index <= 308 + 22 && d <= double_threshold) {
       if (power_index < 308) {
         d = d / power_of_ten[308 * 2 - power_index];
       } else {
@@ -431,11 +388,11 @@ really_inline uint64_t ldbl_mant(long double x) {
       }
       return d;
     }
-    return NAN;
+    return 0;
   }
 
 
-  static uint32_t parse_float_strtod(const uint8_t *const buf, ParsedJson &pj,
+  static uint32_t never_inline parse_float_strtod(const uint8_t *const buf, ParsedJson &pj,
                                               const uint32_t offset, const char *float_end) {
     double d = strtod((char *)(buf + offset), NULL);
     pj.write_tape_double(d);
@@ -444,62 +401,6 @@ really_inline uint64_t ldbl_mant(long double x) {
 #endif
     return is_structural_or_whitespace(*float_end);
   }
-
-// called by parse_number when we know that the output is a float,
-// but where there might be some integer overflow. The trick here is to
-// parse using floats from the start.
-// Do not call this function directly as it skips some of the checks from
-// parse_number
-//
-// This function will almost never be called!!!
-//
-// Note: a redesign could avoid this function entirely.
-//
-static never_inline uint32_t parse_long_float(const uint8_t *const buf, ParsedJson &pj,
-                                     const uint32_t offset, bool found_minus, const char *first_after_period, int64_t exp_number, const char *digits_end, const char *float_end) {
-  const char *p = reinterpret_cast<const char *>(buf + offset);
-  bool negative = false;
-  if (found_minus) {
-    ++p;
-    negative = true;
-  } // not handling "+"?
-  uint64_t i_cutoff = (~(0ULL)) / 10 - 1;
-  uint64_t i = 0;
-  int digits_in_i_start = 0;
-  while (i < i_cutoff && p < digits_end) {
-    if (is_integer(*p)) {
-      unsigned char digit = *p - '0';
-      i = i * 10 + digit;
-      digits_in_i_start++;
-    }
-    p++;
-  }
-  int64_t exponent = first_after_period - p;
-  int64_t power_index = 308 + exponent + exp_number;
-  double d = compute_float_64(power_index, i, negative);
-  if (std::isnan(d)) {
-    uint16_t i_end = 0;
-    uint16_t i_end_cutoff = ((uint16_t)~0) / 10 - 1;
-    int digits_in_i_end = 0;
-    while (i_end < i_end_cutoff && p < digits_end) {
-      if (is_integer(*p)) {
-        unsigned char digit = *p - '0';
-        i = i * 10 + digit;
-        digits_in_i_end++;
-      }
-      p++;
-    }
-    d = compute_float_128(power_index - digits_in_i_end, i, i_end, digits_in_i_end, negative, false);
-    if (std::isnan(d)) {
-      return parse_float_strtod(buf, pj, offset, float_end);
-    }
-  }
-  pj.write_tape_double(d);
-#ifdef JSON_TEST_NUMBERS // for unit testing
-  found_float(d, buf + offset);
-#endif
-  return is_structural_or_whitespace(*float_end);
-}
 
 // called by parse_number when we know that the output is an integer,
 // but where there might be some integer overflow.
@@ -752,51 +653,26 @@ static never_inline bool parse_number(const uint8_t *const buf, ParsedJson &pj,
         // Ok, chances are good that we had an overflow!
         // this is almost never going to get called!!!
         // we start anew, going slowly!!!
-        return parse_long_float(buf, pj, offset, found_minus, first_after_period ?: digit_end, exp_number, digit_end, p);
+        return parse_float_strtod(buf, pj, offset, p);
       }
     }
     if (unlikely((power_index > 2 * 308))) { // this is uncommon!!!
       // this is almost never going to get called!!!
       return parse_float_strtod(buf, pj, offset, p);
     }
-    /*long double d2;
-    if (power_index < 308) {
-      d2 = ((long double)i) * long_power_of_ten[308 - power_index];
-    } else {
-      d2 = ((long double)i) * long_power_of_ten[power_index - 308];
-    }
-    // factor = negative ? -factor : factor;
-    // long double d2 = ((long double)i) * factor;
-    uint64_t m = ldbl_mant(d2);
-    uint64_t m_end = m & 0x1FF;
-    double d = likely(m_end != 0x1FF && m_end != 0x0) ? d2 : 0;*/
-    long double factor = long_power_of_ten_2[power_index];
-    factor = negative ? -factor : factor;
-    long double d2 = ((long double)i) * factor;
-    uint64_t m = ldbl_mant(d2);
-    uint64_t m_end = m & 0x1FF;
-    double d;
-    if (likely(m_end != 0x1FF && m_end != 0x0)) {
-      d = (double)d2;
-      // double d3 = strtod((const char *)(buf + offset), NULL);
-      // assert(d == d3);
-    } else {
-      d = 0;
-    }
-    //double d = compute_float_long_double(i, exponent, power_index, negative);
-    // double d = compute_float_64(power_index, i, negative);
-    // double d = compute_float_double(i, exponent, power_index, negative); //0;
-    /*double d = 0;compute_float_double(i, exponent, power_index, negative);
-    if (std::isnan(d) && true) {
-      // d = compute_float_long_double(i, exponent, power_index, negative);
-      d = compute_float_64(power_index, i, negative);
-      if (std::isnan(d)) {
-        d = compute_float_128(power_index, i, 0, 0, negative, true);
-        if (std::isnan(d)) {
-          return parse_float_strtod(buf, pj, offset, p);
-        }
+    double d = 0;
+    if (likely(i != 0)) {
+      d = compute_float_double(power_index, i, negative);
+      if (d == 0) {
+          d = compute_float_64(power_index, i, negative);
+          if (d == 0) {
+            d = compute_float_128(power_index, i, negative);
+            if (d == 0) {
+              return parse_float_strtod(buf, pj, offset, p);
+            }
+          }
       }
-    }*/
+    }
     pj.write_tape_double(d);
 #ifdef JSON_TEST_NUMBERS // for unit testing
     found_float(d, buf + offset);
