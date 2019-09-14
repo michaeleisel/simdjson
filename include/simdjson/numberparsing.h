@@ -591,7 +591,6 @@ static never_inline bool parse_number(const uint8_t *const buf, ParsedJson &pj,
     }
     exponent = first_after_period - p;
   }
-  const char *digit_end = p;
   int digit_count =
       p - start_digits - 1; // used later to guard against overflows
   int64_t exp_number = 0;   // exponential part
