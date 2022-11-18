@@ -1,4 +1,4 @@
-/* auto-generated on 2022-07-28 21:45:54 -0400. Do not edit! */
+/* auto-generated on 2022-09-19 13:00:17 -0400. Do not edit! */
 /* begin file src/simdjson.cpp */
 #include "simdjson.h"
 
@@ -1589,7 +1589,8 @@ namespace internal {
     { INSUFFICIENT_PADDING, "simdjson requires the input JSON string to have at least SIMDJSON_PADDING extra bytes allocated, beyond the string's length. Consider using the simdjson::padded_string class if needed." },
     { INCOMPLETE_ARRAY_OR_OBJECT, "JSON document ended early in the middle of an object or array." },
     { SCALAR_DOCUMENT_AS_VALUE, "A JSON document made of a scalar (number, Boolean, null or string) is treated as a value. Use get_bool(), get_double(), etc. on the document instead. "},
-    { OUT_OF_BOUNDS, "Attempted to access location outside of document."}
+    { OUT_OF_BOUNDS, "Attempted to access location outside of document."},
+    { TRAILING_CONTENT, "Unexpected trailing content in the JSON input."}
   }; // error_messages[]
 
 } // namespace internal
@@ -3116,7 +3117,7 @@ using namespace simd;
                 "We support one, two or four chunks per 64-byte block.");
         if(simd8x64<uint8_t>::NUM_CHUNKS == 1) {
           this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
-        } if(simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        } else if(simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
         } else if(simd8x64<uint8_t>::NUM_CHUNKS == 4) {
@@ -3497,7 +3498,7 @@ private:
  */
 class json_scanner {
 public:
-  json_scanner() {}
+  json_scanner() = default;
   simdjson_inline json_block next(const simd::simd8x64<uint8_t>& in);
   // Returns either UNCLOSED_STRING or SUCCESS
   simdjson_inline error_code finish();
@@ -4672,7 +4673,7 @@ simdjson_warn_unused simdjson_inline error_code json_iterator::visit_primitive(V
     case '-':
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-      return visitor.visit_number(*this, value);
+      return visitor.visit_number(*this, value, uint32_t(value - buf));
     default:
       log_error("Non-value found when value was expected!");
       return TAPE_ERROR;
@@ -4695,13 +4696,13 @@ struct tape_writer {
   uint64_t *next_tape_loc;
 
   /** Write a signed 64-bit value to tape. */
-  simdjson_inline void append_s64(int64_t value) noexcept;
+  simdjson_inline void append_s64(int64_t value, uint32_t index) noexcept;
 
   /** Write an unsigned 64-bit value to tape. */
-  simdjson_inline void append_u64(uint64_t value) noexcept;
+  simdjson_inline void append_u64(uint64_t value, uint32_t index) noexcept;
 
   /** Write a double value to tape. */
-  simdjson_inline void append_double(double value) noexcept;
+  simdjson_inline void append_double(double value, uint32_t index) noexcept;
 
   /**
    * Append a tape entry (an 8-bit type,and 56 bits worth of value).
@@ -4742,19 +4743,17 @@ private:
   simdjson_inline void append2(uint64_t val, T val2, internal::tape_type t) noexcept;
 }; // struct number_writer
 
-simdjson_inline void tape_writer::append_s64(int64_t value) noexcept {
-  append2(0, value, internal::tape_type::INT64);
+simdjson_inline void tape_writer::append_s64(int64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::INT64);
 }
 
-simdjson_inline void tape_writer::append_u64(uint64_t value) noexcept {
-  append(0, internal::tape_type::UINT64);
-  *next_tape_loc = value;
-  next_tape_loc++;
+simdjson_inline void tape_writer::append_u64(uint64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::UINT64);
 }
 
 /** Write a double value to tape. */
-simdjson_inline void tape_writer::append_double(double value) noexcept {
-  append2(0, value, internal::tape_type::DOUBLE);
+simdjson_inline void tape_writer::append_double(double value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::DOUBLE);
 }
 
 simdjson_inline void tape_writer::skip() noexcept {
@@ -4844,7 +4843,7 @@ struct tape_builder {
   simdjson_warn_unused simdjson_inline error_code visit_root_primitive(json_iterator &iter, const uint8_t *value) noexcept;
 
   simdjson_warn_unused simdjson_inline error_code visit_string(json_iterator &iter, const uint8_t *value, bool key = false) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_true_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_false_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_null_atom(json_iterator &iter, const uint8_t *value) noexcept;
@@ -4949,9 +4948,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_string(
   return visit_string(iter, value);
 }
 
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value) noexcept {
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept {
   iter.log_value("number");
-  return numberparsing::parse_number(value, tape);
+  return numberparsing::parse_number(value, tape, index);
 }
 
 simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(json_iterator &iter, const uint8_t *value) noexcept {
@@ -4972,7 +4971,7 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(
   if (copy.get() == nullptr) { return MEMALLOC; }
   std::memcpy(copy.get(), value, iter.remaining_len());
   std::memset(copy.get() + iter.remaining_len(), ' ', SIMDJSON_PADDING);
-  error_code error = visit_number(iter, copy.get());
+  error_code error = visit_number(iter, copy.get(), uint32_t(value - iter.buf));
   return error;
 }
 
@@ -6146,7 +6145,7 @@ simdjson_warn_unused simdjson_inline error_code json_iterator::visit_primitive(V
     case '-':
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-      return visitor.visit_number(*this, value);
+      return visitor.visit_number(*this, value, uint32_t(value - buf));
     default:
       log_error("Non-value found when value was expected!");
       return TAPE_ERROR;
@@ -6169,13 +6168,13 @@ struct tape_writer {
   uint64_t *next_tape_loc;
 
   /** Write a signed 64-bit value to tape. */
-  simdjson_inline void append_s64(int64_t value) noexcept;
+  simdjson_inline void append_s64(int64_t value, uint32_t index) noexcept;
 
   /** Write an unsigned 64-bit value to tape. */
-  simdjson_inline void append_u64(uint64_t value) noexcept;
+  simdjson_inline void append_u64(uint64_t value, uint32_t index) noexcept;
 
   /** Write a double value to tape. */
-  simdjson_inline void append_double(double value) noexcept;
+  simdjson_inline void append_double(double value, uint32_t index) noexcept;
 
   /**
    * Append a tape entry (an 8-bit type,and 56 bits worth of value).
@@ -6216,19 +6215,17 @@ private:
   simdjson_inline void append2(uint64_t val, T val2, internal::tape_type t) noexcept;
 }; // struct number_writer
 
-simdjson_inline void tape_writer::append_s64(int64_t value) noexcept {
-  append2(0, value, internal::tape_type::INT64);
+simdjson_inline void tape_writer::append_s64(int64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::INT64);
 }
 
-simdjson_inline void tape_writer::append_u64(uint64_t value) noexcept {
-  append(0, internal::tape_type::UINT64);
-  *next_tape_loc = value;
-  next_tape_loc++;
+simdjson_inline void tape_writer::append_u64(uint64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::UINT64);
 }
 
 /** Write a double value to tape. */
-simdjson_inline void tape_writer::append_double(double value) noexcept {
-  append2(0, value, internal::tape_type::DOUBLE);
+simdjson_inline void tape_writer::append_double(double value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::DOUBLE);
 }
 
 simdjson_inline void tape_writer::skip() noexcept {
@@ -6318,7 +6315,7 @@ struct tape_builder {
   simdjson_warn_unused simdjson_inline error_code visit_root_primitive(json_iterator &iter, const uint8_t *value) noexcept;
 
   simdjson_warn_unused simdjson_inline error_code visit_string(json_iterator &iter, const uint8_t *value, bool key = false) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_true_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_false_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_null_atom(json_iterator &iter, const uint8_t *value) noexcept;
@@ -6423,9 +6420,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_string(
   return visit_string(iter, value);
 }
 
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value) noexcept {
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept {
   iter.log_value("number");
-  return numberparsing::parse_number(value, tape);
+  return numberparsing::parse_number(value, tape, index);
 }
 
 simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(json_iterator &iter, const uint8_t *value) noexcept {
@@ -6446,7 +6443,7 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(
   if (copy.get() == nullptr) { return MEMALLOC; }
   std::memcpy(copy.get(), value, iter.remaining_len());
   std::memset(copy.get() + iter.remaining_len(), ' ', SIMDJSON_PADDING);
-  error_code error = visit_number(iter, copy.get());
+  error_code error = visit_number(iter, copy.get(), uint32_t(value - iter.buf));
   return error;
 }
 
@@ -6894,7 +6891,7 @@ using namespace simd;
                 "We support one, two or four chunks per 64-byte block.");
         if(simd8x64<uint8_t>::NUM_CHUNKS == 1) {
           this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
-        } if(simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        } else if(simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
         } else if(simd8x64<uint8_t>::NUM_CHUNKS == 4) {
@@ -7277,7 +7274,7 @@ private:
  */
 class json_scanner {
 public:
-  json_scanner() {}
+  json_scanner() = default;
   simdjson_inline json_block next(const simd::simd8x64<uint8_t>& in);
   // Returns either UNCLOSED_STRING or SUCCESS
   simdjson_inline error_code finish();
@@ -8498,7 +8495,7 @@ simdjson_warn_unused simdjson_inline error_code json_iterator::visit_primitive(V
     case '-':
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-      return visitor.visit_number(*this, value);
+      return visitor.visit_number(*this, value, uint32_t(value - buf));
     default:
       log_error("Non-value found when value was expected!");
       return TAPE_ERROR;
@@ -8521,13 +8518,13 @@ struct tape_writer {
   uint64_t *next_tape_loc;
 
   /** Write a signed 64-bit value to tape. */
-  simdjson_inline void append_s64(int64_t value) noexcept;
+  simdjson_inline void append_s64(int64_t value, uint32_t index) noexcept;
 
   /** Write an unsigned 64-bit value to tape. */
-  simdjson_inline void append_u64(uint64_t value) noexcept;
+  simdjson_inline void append_u64(uint64_t value, uint32_t index) noexcept;
 
   /** Write a double value to tape. */
-  simdjson_inline void append_double(double value) noexcept;
+  simdjson_inline void append_double(double value, uint32_t index) noexcept;
 
   /**
    * Append a tape entry (an 8-bit type,and 56 bits worth of value).
@@ -8568,19 +8565,17 @@ private:
   simdjson_inline void append2(uint64_t val, T val2, internal::tape_type t) noexcept;
 }; // struct number_writer
 
-simdjson_inline void tape_writer::append_s64(int64_t value) noexcept {
-  append2(0, value, internal::tape_type::INT64);
+simdjson_inline void tape_writer::append_s64(int64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::INT64);
 }
 
-simdjson_inline void tape_writer::append_u64(uint64_t value) noexcept {
-  append(0, internal::tape_type::UINT64);
-  *next_tape_loc = value;
-  next_tape_loc++;
+simdjson_inline void tape_writer::append_u64(uint64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::UINT64);
 }
 
 /** Write a double value to tape. */
-simdjson_inline void tape_writer::append_double(double value) noexcept {
-  append2(0, value, internal::tape_type::DOUBLE);
+simdjson_inline void tape_writer::append_double(double value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::DOUBLE);
 }
 
 simdjson_inline void tape_writer::skip() noexcept {
@@ -8670,7 +8665,7 @@ struct tape_builder {
   simdjson_warn_unused simdjson_inline error_code visit_root_primitive(json_iterator &iter, const uint8_t *value) noexcept;
 
   simdjson_warn_unused simdjson_inline error_code visit_string(json_iterator &iter, const uint8_t *value, bool key = false) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_true_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_false_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_null_atom(json_iterator &iter, const uint8_t *value) noexcept;
@@ -8775,9 +8770,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_string(
   return visit_string(iter, value);
 }
 
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value) noexcept {
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept {
   iter.log_value("number");
-  return numberparsing::parse_number(value, tape);
+  return numberparsing::parse_number(value, tape, index);
 }
 
 simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(json_iterator &iter, const uint8_t *value) noexcept {
@@ -8798,7 +8793,7 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(
   if (copy.get() == nullptr) { return MEMALLOC; }
   std::memcpy(copy.get(), value, iter.remaining_len());
   std::memset(copy.get() + iter.remaining_len(), ' ', SIMDJSON_PADDING);
-  error_code error = visit_number(iter, copy.get());
+  error_code error = visit_number(iter, copy.get(), uint32_t(value - iter.buf));
   return error;
 }
 
@@ -9277,7 +9272,7 @@ using namespace simd;
                 "We support one, two or four chunks per 64-byte block.");
         if(simd8x64<uint8_t>::NUM_CHUNKS == 1) {
           this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
-        } if(simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        } else if(simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
         } else if(simd8x64<uint8_t>::NUM_CHUNKS == 4) {
@@ -9658,7 +9653,7 @@ private:
  */
 class json_scanner {
 public:
-  json_scanner() {}
+  json_scanner() = default;
   simdjson_inline json_block next(const simd::simd8x64<uint8_t>& in);
   // Returns either UNCLOSED_STRING or SUCCESS
   simdjson_inline error_code finish();
@@ -10832,7 +10827,7 @@ simdjson_warn_unused simdjson_inline error_code json_iterator::visit_primitive(V
     case '-':
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-      return visitor.visit_number(*this, value);
+      return visitor.visit_number(*this, value, uint32_t(value - buf));
     default:
       log_error("Non-value found when value was expected!");
       return TAPE_ERROR;
@@ -10855,13 +10850,13 @@ struct tape_writer {
   uint64_t *next_tape_loc;
 
   /** Write a signed 64-bit value to tape. */
-  simdjson_inline void append_s64(int64_t value) noexcept;
+  simdjson_inline void append_s64(int64_t value, uint32_t index) noexcept;
 
   /** Write an unsigned 64-bit value to tape. */
-  simdjson_inline void append_u64(uint64_t value) noexcept;
+  simdjson_inline void append_u64(uint64_t value, uint32_t index) noexcept;
 
   /** Write a double value to tape. */
-  simdjson_inline void append_double(double value) noexcept;
+  simdjson_inline void append_double(double value, uint32_t index) noexcept;
 
   /**
    * Append a tape entry (an 8-bit type,and 56 bits worth of value).
@@ -10902,19 +10897,17 @@ private:
   simdjson_inline void append2(uint64_t val, T val2, internal::tape_type t) noexcept;
 }; // struct number_writer
 
-simdjson_inline void tape_writer::append_s64(int64_t value) noexcept {
-  append2(0, value, internal::tape_type::INT64);
+simdjson_inline void tape_writer::append_s64(int64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::INT64);
 }
 
-simdjson_inline void tape_writer::append_u64(uint64_t value) noexcept {
-  append(0, internal::tape_type::UINT64);
-  *next_tape_loc = value;
-  next_tape_loc++;
+simdjson_inline void tape_writer::append_u64(uint64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::UINT64);
 }
 
 /** Write a double value to tape. */
-simdjson_inline void tape_writer::append_double(double value) noexcept {
-  append2(0, value, internal::tape_type::DOUBLE);
+simdjson_inline void tape_writer::append_double(double value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::DOUBLE);
 }
 
 simdjson_inline void tape_writer::skip() noexcept {
@@ -11004,7 +10997,7 @@ struct tape_builder {
   simdjson_warn_unused simdjson_inline error_code visit_root_primitive(json_iterator &iter, const uint8_t *value) noexcept;
 
   simdjson_warn_unused simdjson_inline error_code visit_string(json_iterator &iter, const uint8_t *value, bool key = false) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_true_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_false_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_null_atom(json_iterator &iter, const uint8_t *value) noexcept;
@@ -11109,9 +11102,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_string(
   return visit_string(iter, value);
 }
 
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value) noexcept {
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept {
   iter.log_value("number");
-  return numberparsing::parse_number(value, tape);
+  return numberparsing::parse_number(value, tape, index);
 }
 
 simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(json_iterator &iter, const uint8_t *value) noexcept {
@@ -11132,7 +11125,7 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(
   if (copy.get() == nullptr) { return MEMALLOC; }
   std::memcpy(copy.get(), value, iter.remaining_len());
   std::memset(copy.get() + iter.remaining_len(), ' ', SIMDJSON_PADDING);
-  error_code error = visit_number(iter, copy.get());
+  error_code error = visit_number(iter, copy.get(), uint32_t(value - iter.buf));
   return error;
 }
 
@@ -11574,7 +11567,7 @@ using namespace simd;
                 "We support one, two or four chunks per 64-byte block.");
         if(simd8x64<uint8_t>::NUM_CHUNKS == 1) {
           this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
-        } if(simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        } else if(simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
         } else if(simd8x64<uint8_t>::NUM_CHUNKS == 4) {
@@ -11955,7 +11948,7 @@ private:
  */
 class json_scanner {
 public:
-  json_scanner() {}
+  json_scanner() = default;
   simdjson_inline json_block next(const simd::simd8x64<uint8_t>& in);
   // Returns either UNCLOSED_STRING or SUCCESS
   simdjson_inline error_code finish();
@@ -13129,7 +13122,7 @@ simdjson_warn_unused simdjson_inline error_code json_iterator::visit_primitive(V
     case '-':
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-      return visitor.visit_number(*this, value);
+      return visitor.visit_number(*this, value, uint32_t(value - buf));
     default:
       log_error("Non-value found when value was expected!");
       return TAPE_ERROR;
@@ -13152,13 +13145,13 @@ struct tape_writer {
   uint64_t *next_tape_loc;
 
   /** Write a signed 64-bit value to tape. */
-  simdjson_inline void append_s64(int64_t value) noexcept;
+  simdjson_inline void append_s64(int64_t value, uint32_t index) noexcept;
 
   /** Write an unsigned 64-bit value to tape. */
-  simdjson_inline void append_u64(uint64_t value) noexcept;
+  simdjson_inline void append_u64(uint64_t value, uint32_t index) noexcept;
 
   /** Write a double value to tape. */
-  simdjson_inline void append_double(double value) noexcept;
+  simdjson_inline void append_double(double value, uint32_t index) noexcept;
 
   /**
    * Append a tape entry (an 8-bit type,and 56 bits worth of value).
@@ -13199,19 +13192,17 @@ private:
   simdjson_inline void append2(uint64_t val, T val2, internal::tape_type t) noexcept;
 }; // struct number_writer
 
-simdjson_inline void tape_writer::append_s64(int64_t value) noexcept {
-  append2(0, value, internal::tape_type::INT64);
+simdjson_inline void tape_writer::append_s64(int64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::INT64);
 }
 
-simdjson_inline void tape_writer::append_u64(uint64_t value) noexcept {
-  append(0, internal::tape_type::UINT64);
-  *next_tape_loc = value;
-  next_tape_loc++;
+simdjson_inline void tape_writer::append_u64(uint64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::UINT64);
 }
 
 /** Write a double value to tape. */
-simdjson_inline void tape_writer::append_double(double value) noexcept {
-  append2(0, value, internal::tape_type::DOUBLE);
+simdjson_inline void tape_writer::append_double(double value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::DOUBLE);
 }
 
 simdjson_inline void tape_writer::skip() noexcept {
@@ -13301,7 +13292,7 @@ struct tape_builder {
   simdjson_warn_unused simdjson_inline error_code visit_root_primitive(json_iterator &iter, const uint8_t *value) noexcept;
 
   simdjson_warn_unused simdjson_inline error_code visit_string(json_iterator &iter, const uint8_t *value, bool key = false) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_true_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_false_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_null_atom(json_iterator &iter, const uint8_t *value) noexcept;
@@ -13406,9 +13397,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_string(
   return visit_string(iter, value);
 }
 
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value) noexcept {
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept {
   iter.log_value("number");
-  return numberparsing::parse_number(value, tape);
+  return numberparsing::parse_number(value, tape, index);
 }
 
 simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(json_iterator &iter, const uint8_t *value) noexcept {
@@ -13429,7 +13420,7 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(
   if (copy.get() == nullptr) { return MEMALLOC; }
   std::memcpy(copy.get(), value, iter.remaining_len());
   std::memset(copy.get() + iter.remaining_len(), ' ', SIMDJSON_PADDING);
-  error_code error = visit_number(iter, copy.get());
+  error_code error = visit_number(iter, copy.get(), uint32_t(value - iter.buf));
   return error;
 }
 
@@ -13906,7 +13897,7 @@ using namespace simd;
                 "We support one, two or four chunks per 64-byte block.");
         if(simd8x64<uint8_t>::NUM_CHUNKS == 1) {
           this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
-        } if(simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        } else if(simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
         } else if(simd8x64<uint8_t>::NUM_CHUNKS == 4) {
@@ -14287,7 +14278,7 @@ private:
  */
 class json_scanner {
 public:
-  json_scanner() {}
+  json_scanner() = default;
   simdjson_inline json_block next(const simd::simd8x64<uint8_t>& in);
   // Returns either UNCLOSED_STRING or SUCCESS
   simdjson_inline error_code finish();
@@ -15461,7 +15452,7 @@ simdjson_warn_unused simdjson_inline error_code json_iterator::visit_primitive(V
     case '-':
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-      return visitor.visit_number(*this, value);
+      return visitor.visit_number(*this, value, uint32_t(value - buf));
     default:
       log_error("Non-value found when value was expected!");
       return TAPE_ERROR;
@@ -15484,13 +15475,13 @@ struct tape_writer {
   uint64_t *next_tape_loc;
 
   /** Write a signed 64-bit value to tape. */
-  simdjson_inline void append_s64(int64_t value) noexcept;
+  simdjson_inline void append_s64(int64_t value, uint32_t index) noexcept;
 
   /** Write an unsigned 64-bit value to tape. */
-  simdjson_inline void append_u64(uint64_t value) noexcept;
+  simdjson_inline void append_u64(uint64_t value, uint32_t index) noexcept;
 
   /** Write a double value to tape. */
-  simdjson_inline void append_double(double value) noexcept;
+  simdjson_inline void append_double(double value, uint32_t index) noexcept;
 
   /**
    * Append a tape entry (an 8-bit type,and 56 bits worth of value).
@@ -15531,19 +15522,17 @@ private:
   simdjson_inline void append2(uint64_t val, T val2, internal::tape_type t) noexcept;
 }; // struct number_writer
 
-simdjson_inline void tape_writer::append_s64(int64_t value) noexcept {
-  append2(0, value, internal::tape_type::INT64);
+simdjson_inline void tape_writer::append_s64(int64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::INT64);
 }
 
-simdjson_inline void tape_writer::append_u64(uint64_t value) noexcept {
-  append(0, internal::tape_type::UINT64);
-  *next_tape_loc = value;
-  next_tape_loc++;
+simdjson_inline void tape_writer::append_u64(uint64_t value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::UINT64);
 }
 
 /** Write a double value to tape. */
-simdjson_inline void tape_writer::append_double(double value) noexcept {
-  append2(0, value, internal::tape_type::DOUBLE);
+simdjson_inline void tape_writer::append_double(double value, uint32_t index) noexcept {
+  append2(index, value, internal::tape_type::DOUBLE);
 }
 
 simdjson_inline void tape_writer::skip() noexcept {
@@ -15633,7 +15622,7 @@ struct tape_builder {
   simdjson_warn_unused simdjson_inline error_code visit_root_primitive(json_iterator &iter, const uint8_t *value) noexcept;
 
   simdjson_warn_unused simdjson_inline error_code visit_string(json_iterator &iter, const uint8_t *value, bool key = false) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_true_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_false_atom(json_iterator &iter, const uint8_t *value) noexcept;
   simdjson_warn_unused simdjson_inline error_code visit_null_atom(json_iterator &iter, const uint8_t *value) noexcept;
@@ -15738,9 +15727,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_string(
   return visit_string(iter, value);
 }
 
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value) noexcept {
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value, uint32_t index) noexcept {
   iter.log_value("number");
-  return numberparsing::parse_number(value, tape);
+  return numberparsing::parse_number(value, tape, index);
 }
 
 simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(json_iterator &iter, const uint8_t *value) noexcept {
@@ -15761,7 +15750,7 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(
   if (copy.get() == nullptr) { return MEMALLOC; }
   std::memcpy(copy.get(), value, iter.remaining_len());
   std::memset(copy.get() + iter.remaining_len(), ' ', SIMDJSON_PADDING);
-  error_code error = visit_number(iter, copy.get());
+  error_code error = visit_number(iter, copy.get(), uint32_t(value - iter.buf));
   return error;
 }
 
